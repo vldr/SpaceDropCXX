@@ -77,13 +77,10 @@ void send_file_info(client * c, websocketpp::connection_hdl hdl)
 
 	try
 	{
-		// Serialize our json object.
 		auto string = file_info_obj.dump();
 
-		// Inform the user.
 		printf("Sending file info.\n");
 
-		// Send our serialized string.
 		c->send(hdl, string, websocketpp::frame::opcode::value::text);
 	}
 	catch (json::exception const & e)
@@ -155,10 +152,10 @@ void handle_ready_for_transfer(client * c, websocketpp::connection_hdl hdl, json
 
 		/////////////////////////////////////
 
-		printf("%zu\n", con->get_buffered_amount());
-
 		if (con->get_buffered_amount() >= BUFFERING_LIMIT) 
+		{
 			c->interrupt(hdl);
+		}
 	} 
 } 
 
@@ -355,7 +352,7 @@ void create_room(client * c, websocketpp::connection_hdl hdl)
 
 void on_interrupt(client * c, websocketpp::connection_hdl hdl)
 {
-	auto con = c->get_con_from_hdl(hdl);
+	auto con = c->get_con_from_hdl(hdl); 
 
 	if (con->get_buffered_amount() == 0)
 	{
@@ -506,9 +503,9 @@ int main(int argc, char* argv[])
 {
 	//////////////////////////////////////////////
 
-#ifdef _DEBUG
+#ifndef _DEBUG
 	std::string command = "-c";
-	std::string parameter = "C:\\Users\\vlad\\Downloads\\Tutorialo.mp4";
+	std::string parameter = "C:\\Users\\vlad\\Downloads\\tut.mp4";
 	
 	//std::string command = "-j";
 	//std::string parameter = "06og";
@@ -602,6 +599,7 @@ int main(int argc, char* argv[])
 
 		c.set_message_handler(bind(&on_message, &c, ::_1, ::_2));
 		c.set_open_handler(bind(&on_open, &c, ::_1));
+		c.set_interrupt_handler(bind(&on_interrupt, &c, ::_1));
 
 		websocketpp::lib::error_code ec;
 		client::connection_ptr con = c.get_connection(uri, ec);
