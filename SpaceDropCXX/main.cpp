@@ -159,7 +159,7 @@ void handle_file_info(client * c, websocketpp::connection_hdl hdl, json & messag
 	//////////////////////////////////////
 
 	// Check if the file name matches our regex.
-	if (!std::regex_match(file_name, std::regex("[0-9a-zA-Z-._()]+")))
+	if (!std::regex_match(file_name, std::regex("[0-9a-zA-Z-._() ]+")))
 	{
 		display_error("Improper file name.");
 		return;
@@ -513,7 +513,13 @@ int main(int argc, char* argv[])
 
 		///////////////////////////////////////////
 
+#ifdef _WIN32
 		int fd = _fileno(shared_file);
+#else
+		int fd = fileno(shared_file);
+#endif
+
+		
 
 		if (fd < 0)
 		{

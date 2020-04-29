@@ -5,6 +5,8 @@ project(SpaceDropCXX)
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release"
     CACHE STRING "Configuration types" FORCE)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
+
 add_executable(SpaceDropCXX
   main.cpp
   sd.h
