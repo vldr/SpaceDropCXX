@@ -124,11 +124,11 @@ void handle_ready_for_transfer(client * c, websocketpp::connection_hdl hdl, json
 	printf("Starting transfer.\n");
 
 	/////////////////////////////////////////////////////
-	
-	const size_t max_size = file_info["size"];
-	size_t size = file_info["size"];
-	size_t block_size = BLOCK_SIZE;
-	unsigned char buffer[BLOCK_SIZE];
+
+	send_state = SendState();
+	send_state.max_size = file_info["size"];
+	send_state.size = file_info["size"];
+	send_state.should_be_flushed = false;
 
 	/////////////////////////////////////////////////////
 
@@ -138,25 +138,7 @@ void handle_ready_for_transfer(client * c, websocketpp::connection_hdl hdl, json
 
 	auto con = c->get_con_from_hdl(hdl);
 
-	while (size != 0)
-	{  
-		if (size < block_size)
-			block_size = size;
-
-		size_t bytes_read = fread(buffer, sizeof(unsigned char), block_size, shared_file);
-
-		c->send(hdl, buffer, bytes_read, websocketpp::frame::opcode::value::binary);
-		c->poll();
-
-		size -= bytes_read;  
-
-		/////////////////////////////////////
-
-		if (con->get_buffered_amount() >= BUFFERING_LIMIT) 
-		{
-			c->interrupt(hdl);
-		}
-	} 
+	c->interrupt(hdl);
 } 
 
 /*
@@ -349,15 +331,36 @@ void create_room(client * c, websocketpp::connection_hdl hdl)
 }
 
 //////////////////////////////////////////////
-
+ 
 void on_interrupt(client * c, websocketpp::connection_hdl hdl)
 {
-	auto con = c->get_con_from_hdl(hdl); 
+	if (send_state.size == 0)
+		return; 
 
-	if (con->get_buffered_amount() == 0)
+	///////////////////////////////////////////////
+	 
+	auto con = c->get_con_from_hdl(hdl);
+
+	if (send_state.should_be_flushed && con->get_buffered_amount() != 0)
 	{
+		c->interrupt(hdl);
 		return;
 	}
+
+	///////////////////////////////////////////////
+
+	if (send_state.size < send_state.block_size)
+		send_state.block_size = send_state.size;
+
+	size_t bytes_read = fread(send_state.buffer, sizeof(unsigned char), send_state.block_size, shared_file);
+
+	c->send(hdl, send_state.buffer, bytes_read, websocketpp::frame::opcode::value::binary);
+	c->poll();
+
+	send_state.size -= bytes_read;
+	send_state.should_be_flushed = con->get_buffered_amount() >= BUFFERING_LIMIT;
+
+	///////////////////////////////////////////////
 
 	c->interrupt(hdl);
 }
@@ -497,8 +500,8 @@ void on_message(client * c, websocketpp::connection_hdl hdl, message_ptr msg)
 std::string base_name(std::string const & path)
 {
 	return path.substr(path.find_last_of("/\\") + 1);
-}
-
+} 
+ 
 int main(int argc, char* argv[]) 
 {
 	//////////////////////////////////////////////

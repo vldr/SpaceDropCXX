@@ -28,6 +28,11 @@ typedef websocketpp::config::asio_client::message_type::ptr message_ptr;
 void join_room(client * c, websocketpp::connection_hdl hdl, std::string pin = std::string());
 void create_room(client * c, websocketpp::connection_hdl hdl);
 
+
+const size_t BUFFERING_LIMIT = 100000000;
+const int BLOCK_SIZE = 65527;
+const int BLOCK_SIZE_UPDATE = BLOCK_SIZE * 4;
+
 enum Operation {
 	ERROR_OCCURRED = 0,
 	CREATE_ROOM = 1,
@@ -46,12 +51,17 @@ enum State {
 	S_DOWNLOADING = 2
 };
 
+struct SendState {
+	size_t max_size = 0;
+	size_t size = 0;
+
+	size_t block_size = BLOCK_SIZE;
+	unsigned char buffer[BLOCK_SIZE];
+
+	bool should_be_flushed = false;
+};
+
 State state = S_IDLE;
-
-const size_t BUFFERING_LIMIT = 100000000;
-
-const int BLOCK_SIZE = 65527;
-const int BLOCK_SIZE_UPDATE = BLOCK_SIZE * 4;
 
 size_t bytes_written = 0;
 
@@ -60,6 +70,8 @@ bool is_transmitting = false;
 long file_size = 0;
 
 int file_queue = -1;
+
+SendState send_state = SendState();
 
 json file_info;
 
