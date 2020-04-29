@@ -579,14 +579,14 @@ int main(int argc, char* argv[])
 	{
 		printf("Invalid command provided.\n");
 	}
-
+	 
 	//////////////////////////////////////////////
 	  
 	client c; 
 
 	//////////////////////////////////////////////
 
-	std::string uri = "ws://my.vldr.org/sd";
+	std::string uri = "ws://vldr.org/sd";
 
 	//////////////////////////////////////////////
 
