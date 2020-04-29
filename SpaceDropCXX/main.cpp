@@ -151,9 +151,11 @@ void handle_ready_for_transfer(client * c, websocketpp::connection_hdl hdl, json
 		c->send(hdl, buffer, bytes_read, websocketpp::frame::opcode::value::binary);
 		c->poll();
 
-		size -= bytes_read; 
+		size -= bytes_read;  
 
 		/////////////////////////////////////
+
+		printf("%zu\n", con->get_buffered_amount());
 
 		if (con->get_buffered_amount() >= BUFFERING_LIMIT) 
 			c->interrupt(hdl);
