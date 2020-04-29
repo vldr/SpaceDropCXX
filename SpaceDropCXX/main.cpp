@@ -503,7 +503,7 @@ int main(int argc, char* argv[])
 {
 	//////////////////////////////////////////////
 
-#ifndef _DEBUG
+#ifdef _DEBUG
 	std::string command = "-c";
 	std::string parameter = "C:\\Users\\vlad\\Downloads\\tut.mp4";
 	
