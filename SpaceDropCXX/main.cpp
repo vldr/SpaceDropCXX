@@ -1,13 +1,8 @@
 #include "sd.h"
 
-
-void reset()
-{
-	bytes_written = 0;
-	file_queue = -1;
-	is_transmitting = false;
-}
-
+/*
+* Displays an error and exits the program.
+*/
 void display_error(std::string error)
 {
 	printf("Error occurred: %s\n", error.c_str());
@@ -15,7 +10,9 @@ void display_error(std::string error)
 	exit(0);
 }
 
-
+/*
+* Handles with the creation of a room.
+*/
 void handle_room_created(json & message)
 {
 	room_id = message["id"];
@@ -27,7 +24,6 @@ void handle_room_created(json & message)
 #endif
 
 	std::string file_name = file_info["name"];
-	long file_size = file_info["size"];
 
 	printf("Room created - #%s\n", room_id.c_str());
 	printf("File Name - %s\n", file_name.c_str());
@@ -35,6 +31,9 @@ void handle_room_created(json & message)
 	printf("__________________________\n");
 }
 
+/*
+* Handles any error occurred.
+*/
 void handle_error_occurred(json & message) 
 {
 	std::string error_message = message["msg"];
@@ -42,7 +41,35 @@ void handle_error_occurred(json & message)
 	display_error(message["msg"]);
 }
 
+/*
+* Updates the sender of the download progress.
+*/
+void update_transfer_status(client * c, websocketpp::connection_hdl hdl)
+{
+	json transfer_status_obj;
+	transfer_status_obj["status"] = TRANSFER_STATUS;
+	transfer_status_obj["progress"] = bytes_written;
 
+	try
+	{
+		auto string = transfer_status_obj.dump();
+
+		c->send(hdl, string, websocketpp::frame::opcode::value::text);
+	}
+	catch (json::exception const & e)
+	{
+		display_error(std::string("Error in send_file_info (json::exception), ") + e.what());
+	}
+	catch (websocketpp::exception const & e)
+	{
+		display_error(std::string("Error in send_file_info (websocketpp::exception), ") + e.what());
+	}
+}
+
+
+/*
+* Handles 
+*/
 void send_file_info(client * c, websocketpp::connection_hdl hdl)
 {
 	json file_info_obj;
@@ -54,22 +81,31 @@ void send_file_info(client * c, websocketpp::connection_hdl hdl)
 		// Serialize our json object.
 		auto string = file_info_obj.dump();
 
-		// Debug our object that
-		printf("Sending file info.\n", string.c_str());
+		// Inform the user.
+		printf("Sending file info.\n");
 
 		// Send our serialized string.
 		c->send(hdl, string, websocketpp::frame::opcode::value::text);
 	}
-	// Catch any json exceptions.
 	catch (json::exception const & e)
 	{
 		display_error(std::string("Error in send_file_info (json::exception), ") + e.what());
 	}
-	// Catch any websocketpp exceptions.
 	catch (websocketpp::exception const & e)
 	{
 		display_error(std::string("Error in send_file_info (websocketpp::exception), ") + e.what());
 	}
+}
+
+void handle_send_pin(client * c, websocketpp::connection_hdl hdl)
+{
+	char room_pin[128] = { 0 };
+	printf("This room requires a PIN: ");
+	scanf_s("%[^\n]s", room_pin, sizeof room_pin);
+
+	//////////////////////////////////////////
+
+	join_room(c, hdl, room_pin);
 }
 
 void handle_ready_for_transfer(client * c, websocketpp::connection_hdl hdl, json & message)
@@ -82,15 +118,20 @@ void handle_ready_for_transfer(client * c, websocketpp::connection_hdl hdl, json
 
 	/////////////////////////////////////////////////////
 
-	printf("Starting transfer\n");
+	printf("Starting transfer.\n");
 
 	/////////////////////////////////////////////////////
 	
+	const size_t max_size = file_info["size"];
 	size_t size = file_info["size"];
 	size_t block_size = BLOCK_SIZE;
 	unsigned char buffer[BLOCK_SIZE];
 
+	/////////////////////////////////////////////////////
+
 	rewind(shared_file); 
+
+	/////////////////////////////////////////////////////
 
 	while (size != 0)
 	{
@@ -103,6 +144,89 @@ void handle_ready_for_transfer(client * c, websocketpp::connection_hdl hdl, json
 		c->poll();
 
 		size -= bytes_read;
+	} 
+}
+
+void handle_file_info(client * c, websocketpp::connection_hdl hdl, json & message)
+{
+#if defined(_WIN32)
+	system("cls");
+#endif
+
+	std::string file_name = message["fileInfo"]["name"];
+
+	//////////////////////////////////////
+
+	// Check if the file name matches our regex.
+	if (!std::regex_match(file_name, std::regex("[0-9a-zA-Z-._()]+")))
+	{
+		display_error("Improper file name.");
+		return;
+	}
+
+	//////////////////////////////////////
+
+	file_info = message["fileInfo"];
+	file_size = file_info["size"];
+
+	//////////////////////////////////////
+
+	printf("Room - #%s\n", room_id.c_str());
+	printf("File Name - %s\n", file_name.c_str());
+	printf("File Size - %lu\n", file_size);
+	printf("__________________________\n");
+
+	//////////////////////////////////////
+
+	// Close our file handle if it is open.
+	if (shared_file)
+	{
+		fclose(shared_file);
+	}
+
+	//////////////////////////////////////
+
+	auto err = fopen_s(&shared_file, file_name.c_str(), "w+b");
+
+	if (err)
+	{
+		display_error("Unable to create file, file may already exist.");
+		return;
+	}
+
+	//////////////////////////////////////
+
+	rewind(shared_file);
+
+	//////////////////////////////////////
+
+	state = S_DOWNLOADING;
+	bytes_written = 0;
+
+	//////////////////////////////////////
+
+	json ready_for_transfer_obj;
+	ready_for_transfer_obj["status"] = READY_FOR_TRANSFER;
+
+	//////////////////////////////////////
+
+	try
+	{
+		// Serialize our json object.
+		auto string = ready_for_transfer_obj.dump();
+
+		printf("Sending ready for transfer.\n");
+
+		// Send our serialized string.
+		c->send(hdl, string, websocketpp::frame::opcode::value::text);
+	}
+	catch (json::exception const & e)
+	{
+		display_error(std::string("Error in handle_file_info (json::exception), ") + e.what());
+	}
+	catch (websocketpp::exception const & e)
+	{
+		display_error(std::string("Error in handle_file_info (websocketpp::exception), ") + e.what());
 	}
 }
 
@@ -129,30 +253,41 @@ void handle_update_room(client * c, websocketpp::connection_hdl hdl, json & mess
 
 	if (state == S_IDLE)
 	{
-		// TODO: implement this.
-		//setStatus("Successfully joined the room.");
-
-		//postMessage({ status: R_JOINED_ROOM });
+		printf("Successfully joined the room.\n");
 	}
 }
 
-void on_open(client * c, websocketpp::connection_hdl hdl) 
+void join_room(client * c, websocketpp::connection_hdl hdl, std::string pin)
 {
-	reset();
+	//////////////////////////////////////////////
 
-	if (state == S_UPLOADING)
+	json join_room_obj;
+	join_room_obj["status"] = JOIN_ROOM;
+	join_room_obj["id"] = room_id;
+	join_room_obj["pin"] = pin;
+
+	//////////////////////////////////////////////
+
+	try
 	{
-		printf("Connected as sender.\n");
+		// Serialize our json object.
+		auto string = join_room_obj.dump();
 
-		//////////////////////////////////////////////
-	
-		create_room(c, hdl);
+		printf("Sending join room.\n");
+
+		// Send our serialized string.
+		c->send(hdl, string, websocketpp::frame::opcode::value::text);
 	}
-	else
+	// Catch any json exceptions.
+	catch (json::exception const & e)
 	{
-		printf("Connected as receiver.\n");
+		display_error(std::string("Error in join_room (json::exception), ") + e.what());
 	}
-
+	// Catch any websocketpp exceptions.
+	catch (websocketpp::exception const & e)
+	{
+		display_error(std::string("Error in join_room (websocketpp::exception), ") + e.what());
+	}
 }
 
 void create_room(client * c, websocketpp::connection_hdl hdl)
@@ -178,7 +313,7 @@ void create_room(client * c, websocketpp::connection_hdl hdl)
 		// Serialize our json object.
 		auto string = create_room_obj.dump();
 
-		printf("Sending create room.\n", string.c_str());
+		printf("Sending create room.\n");
 
 		// Send our serialized string.
 		c->send(hdl, string, websocketpp::frame::opcode::value::text);
@@ -195,14 +330,77 @@ void create_room(client * c, websocketpp::connection_hdl hdl)
 	}
 }
 
+//////////////////////////////////////////////
+
+void on_open(client * c, websocketpp::connection_hdl hdl) 
+{
+	/////////////////////////////////////
+
+	if (state == S_UPLOADING)
+	{
+		printf("Connected as sender.\n");
+
+		//////////////////////////////////////////////
+	
+		create_room(c, hdl);
+	}
+	else
+	{
+		printf("Connected as receiver, attempting to join room.\n");
+
+		//////////////////////////////////////////////
+
+		join_room(c, hdl);
+	}
+} 
+
 void on_message(client * c, websocketpp::connection_hdl hdl, message_ptr msg)
 {
-	// Process binary operations.
-	if (msg->get_opcode() == websocketpp::frame::opcode::value::binary)
+	// The following conditions must be met:
+	// - We are being send binary data.
+	// - We are downloading
+	// - We have a valid file handle.
+	if (
+		msg->get_opcode() == websocketpp::frame::opcode::value::binary 
+		&& state == S_DOWNLOADING
+		&& shared_file
+	)
 	{
+		auto payload = msg->get_payload(); 
+		 
+		bytes_written += fwrite(
+			(const void*)payload.data(),
+			sizeof(unsigned char),
+			payload.size(),
+			shared_file
+		); 
+		 
+		/////////////////////////////////
 
+		if (bytes_written % BLOCK_SIZE_UPDATE == 0)
+		{
+			update_transfer_status(c, hdl);
+		}
+
+		/////////////////////////////////
+
+		if (bytes_written == file_size)
+		{
+			printf("Transfer completed.\n");
+
+			state = S_IDLE;
+
+			///////////////////////////////////////////
+
+			fclose(shared_file);
+			shared_file = nullptr;
+
+			///////////////////////////////////////////
+			
+			update_transfer_status(c, hdl);
+		}
 	}
-	// Process text operations
+	// Process text operations.
 	else if (msg->get_opcode() == websocketpp::frame::opcode::value::text)
 	{
 		try
@@ -230,34 +428,43 @@ void on_message(client * c, websocketpp::connection_hdl hdl, message_ptr msg)
 				handle_update_room(c, hdl, message);
 				break;
 			}
+			case FILE_INFO:
+			{
+				handle_file_info(c, hdl, message);
+				break;
+			}
 			case READY_FOR_TRANSFER:
 			{
 				handle_ready_for_transfer(c, hdl, message);
 				break;
 			}
+			case SEND_PIN:
+			{
+				handle_send_pin(c, hdl);
+				break;
 			}
+			case TRANSFER_STATUS:
+			{
+				long progress = message["progress"];
 
+				if (progress == file_size)
+				{
+					printf("File transfer completed.\n");
+
+				}
+
+				break;
+			}
+			}
 		}
 		catch (json::exception const & e)
 		{
 			display_error(std::string("Error in on_message, ") + e.what());
 		}
-
 	}
-
-
-	/*std::cout << "on_message called with hdl: " << hdl.lock().get()
-		<< " and message: " << msg->get_payload()
-		<< std::endl;*/
-
-
-	/*websocketpp::lib::error_code ec;
-
-	c->send(hdl, msg->get_payload(), msg->get_opcode(), ec);
-	if (ec) {
-		std::cout << "Echo failed because: " << ec.message() << std::endl;
-	}*/
 }
+ 
+//////////////////////////////////////////////
 
 std::string base_name(std::string const & path)
 {
@@ -269,8 +476,11 @@ int main(int argc, char* argv[])
 	//////////////////////////////////////////////
 
 #ifdef _DEBUG
-	std::string command = "-c";
-	std::string parameter = "C:\\Users\\vlad\\Desktop\\bigblack.mp4";
+	//std::string command = "-c";
+	//std::string parameter = "C:\\Users\\vlad\\Desktop\\bigblack.mp4";
+	
+	std::string command = "-j";
+	std::string parameter = "06og";
 #else
 	if (argc != 3)
 	{
@@ -317,6 +527,10 @@ int main(int argc, char* argv[])
 
 		////////////////////////////////////////////
 
+		file_size = file_stat.st_size;;
+
+		////////////////////////////////////////////
+
 		file_info.clear();
 		file_info["name"] = base_name(parameter);
 		file_info["size"] = file_stat.st_size;
@@ -326,22 +540,21 @@ int main(int argc, char* argv[])
 	// Handle the join command.
 	else if (command == "-j" || command == "-join")
 	{
-
 		// Set our room id with the parameter provided.
 		room_id = parameter;
 	}
-	else
+	else 
 	{
 		printf("Invalid command provided.\n");
 	}
 
 	//////////////////////////////////////////////
 
-	client c;
+	client c; 
 
 	//////////////////////////////////////////////
 
-	std::string uri = "ws://my.vldr.org/sd";
+	std::string uri = "ws://vldr.org/sd";
 
 	//////////////////////////////////////////////
 

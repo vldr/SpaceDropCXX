@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <string>
+#include <regex>
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -13,6 +14,7 @@
 
 #include <json.hpp> 
 
+
 using nlohmann::json;
 
 typedef websocketpp::client<websocketpp::config::asio_client> client;
@@ -23,6 +25,7 @@ using websocketpp::lib::bind;
 
 typedef websocketpp::config::asio_client::message_type::ptr message_ptr;
  
+void join_room(client * c, websocketpp::connection_hdl hdl, std::string pin = std::string());
 void create_room(client * c, websocketpp::connection_hdl hdl);
 
 enum Operation {
@@ -48,9 +51,11 @@ State state = S_IDLE;
 const int BLOCK_SIZE = 65527;
 const int BLOCK_SIZE_UPDATE = BLOCK_SIZE * 4;
 
-int bytes_written = 0;
+size_t bytes_written = 0;
 
 bool is_transmitting = false;
+
+long file_size = 0;
 
 int file_queue = -1;
 
