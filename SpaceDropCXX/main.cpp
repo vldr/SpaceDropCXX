@@ -315,10 +315,7 @@ void create_room(client * c, websocketpp::connection_hdl hdl)
 		// Serialize our json object.
 		auto string = create_room_obj.dump();
 
-
-		printf("Sending create room. %s\n", room_pin);
-
-		system("pause");
+		printf("Sending create room.\n");
 
 		// Send our serialized string.
 		c->send(hdl, string, websocketpp::frame::opcode::value::text);
