@@ -135,14 +135,14 @@ void handle_ready_for_transfer(client * c, websocketpp::connection_hdl hdl, json
 
 	/////////////////////////////////////////////////////
 
-	rewind(shared_file); 
+	rewind(shared_file);  
 
 	/////////////////////////////////////////////////////
 
 	auto con = c->get_con_from_hdl(hdl);
 
 	while (size != 0)
-	{ 
+	{  
 		if (size < block_size)
 			block_size = size;
 
@@ -155,9 +155,10 @@ void handle_ready_for_transfer(client * c, websocketpp::connection_hdl hdl, json
 
 		/////////////////////////////////////
 
-		while (con->get_buffered_amount() >= BUFFERING_LIMIT) {}
+		if (con->get_buffered_amount() >= BUFFERING_LIMIT) 
+			c->interrupt(hdl);
 	} 
-}
+} 
 
 /*
 * Handles recieving file information.
@@ -349,6 +350,19 @@ void create_room(client * c, websocketpp::connection_hdl hdl)
 }
 
 //////////////////////////////////////////////
+
+void on_interrupt(client * c, websocketpp::connection_hdl hdl)
+{
+	auto con = c->get_con_from_hdl(hdl);
+
+	if (con->get_buffered_amount() == 0)
+	{
+		return;
+	}
+
+	c->interrupt(hdl);
+}
+
 
 void on_open(client * c, websocketpp::connection_hdl hdl) 
 {
