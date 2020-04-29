@@ -32,7 +32,7 @@ void handle_room_created(json & message)
 }
 
 /*
-* Handles any error occurred.
+* Handles any error that may occur.
 */
 void handle_error_occurred(json & message) 
 {
@@ -66,9 +66,8 @@ void update_transfer_status(client * c, websocketpp::connection_hdl hdl)
 	}
 }
 
-
 /*
-* Handles 
+* Handles sending file information to the other client.
 */
 void send_file_info(client * c, websocketpp::connection_hdl hdl)
 {
@@ -97,6 +96,9 @@ void send_file_info(client * c, websocketpp::connection_hdl hdl)
 	}
 }
 
+/*
+* Handles sending the pin for the room inorder to enter it.
+*/
 void handle_send_pin(client * c, websocketpp::connection_hdl hdl)
 {
 	char room_pin[128] = { 0 };
@@ -109,6 +111,9 @@ void handle_send_pin(client * c, websocketpp::connection_hdl hdl)
 	join_room(c, hdl, room_pin);
 }
 
+/*
+* Handles sending the file contents to the client.
+*/
 void handle_ready_for_transfer(client * c, websocketpp::connection_hdl hdl, json & message)
 {
 	if (!shared_file)
@@ -134,8 +139,10 @@ void handle_ready_for_transfer(client * c, websocketpp::connection_hdl hdl, json
 
 	/////////////////////////////////////////////////////
 
+	auto con = c->get_con_from_hdl(hdl);
+
 	while (size != 0)
-	{
+	{ 
 		if (size < block_size)
 			block_size = size;
 
@@ -144,10 +151,17 @@ void handle_ready_for_transfer(client * c, websocketpp::connection_hdl hdl, json
 		c->send(hdl, buffer, bytes_read, websocketpp::frame::opcode::value::binary);
 		c->poll();
 
-		size -= bytes_read;
+		size -= bytes_read; 
+
+		/////////////////////////////////////
+
+		while (con->get_buffered_amount() >= BUFFERING_LIMIT) {}
 	} 
 }
 
+/*
+* Handles recieving file information.
+*/
 void handle_file_info(client * c, websocketpp::connection_hdl hdl, json & message)
 {
 #if defined(_WIN32)
@@ -191,7 +205,7 @@ void handle_file_info(client * c, websocketpp::connection_hdl hdl, json & messag
 
 	if (!shared_file)
 	{
-		display_error("Unable to create file, file may already exist.");
+		display_error("Unable to open/create file, file may already exist.");
 		return;
 	}
 
@@ -231,6 +245,9 @@ void handle_file_info(client * c, websocketpp::connection_hdl hdl, json & messag
 	}
 }
 
+/*
+* Handles whenever a client joins or leaves the room.
+*/
 void handle_update_room(client * c, websocketpp::connection_hdl hdl, json & message)
 {
 	is_transmitting = message["isTransmitting"];
@@ -258,6 +275,9 @@ void handle_update_room(client * c, websocketpp::connection_hdl hdl, json & mess
 	}
 }
 
+/*
+* Send a JOIN_ROOM signal inorder to join a room.
+*/
 void join_room(client * c, websocketpp::connection_hdl hdl, std::string pin)
 {
 	//////////////////////////////////////////////
@@ -279,23 +299,23 @@ void join_room(client * c, websocketpp::connection_hdl hdl, std::string pin)
 		// Send our serialized string.
 		c->send(hdl, string, websocketpp::frame::opcode::value::text);
 	}
-	// Catch any json exceptions.
 	catch (json::exception const & e)
 	{
 		display_error(std::string("Error in join_room (json::exception), ") + e.what());
 	}
-	// Catch any websocketpp exceptions.
 	catch (websocketpp::exception const & e)
 	{
 		display_error(std::string("Error in join_room (websocketpp::exception), ") + e.what());
 	}
 }
 
+/*
+* Attempts to create a new room.
+*/
 void create_room(client * c, websocketpp::connection_hdl hdl)
 {
 	char room_pin[128] = { 0 };
 	printf("Enter a PIN for the room (leave blank if you don't care): ");
-
 	scanf("%127[^\n]s", room_pin);
 
 #if defined(_WIN32)
@@ -312,20 +332,16 @@ void create_room(client * c, websocketpp::connection_hdl hdl)
 
 	try
 	{
-		// Serialize our json object.
 		auto string = create_room_obj.dump();
 
 		printf("Sending create room.\n");
 
-		// Send our serialized string.
 		c->send(hdl, string, websocketpp::frame::opcode::value::text);
 	}
-	// Catch any json exceptions.
 	catch (json::exception const & e)
 	{
 		display_error(std::string("Error in create_room (json::exception), ") + e.what());
 	}
-	// Catch any websocketpp exceptions.
 	catch (websocketpp::exception const & e)
 	{
 		display_error(std::string("Error in create_room (websocketpp::exception), ") + e.what());
@@ -359,9 +375,9 @@ void on_open(client * c, websocketpp::connection_hdl hdl)
 void on_message(client * c, websocketpp::connection_hdl hdl, message_ptr msg)
 {
 	// The following conditions must be met:
-	// - We are being send binary data.
-	// - We are downloading
-	// - We have a valid file handle.
+	// - We are being sent binary data.
+	// - We are in the downloading state.
+	// - We have a valid file handle. (a valid pointer)
 	if (
 		msg->get_opcode() == websocketpp::frame::opcode::value::binary 
 		&& state == S_DOWNLOADING
@@ -407,10 +423,7 @@ void on_message(client * c, websocketpp::connection_hdl hdl, message_ptr msg)
 	{
 		try
 		{
-			// Parse our message.
 			auto message = json::parse(msg->get_payload());
-
-			// Get our status code.
 			Operation status = message["status"];
 
 			switch (status)
@@ -479,7 +492,7 @@ int main(int argc, char* argv[])
 
 #ifdef _DEBUG
 	std::string command = "-c";
-	std::string parameter = "C:\\Users\\vlad\\Desktop\\bigblack.mp4";
+	std::string parameter = "C:\\Users\\vlad\\Downloads\\Tutorialo.mp4";
 	
 	//std::string command = "-j";
 	//std::string parameter = "06og";
@@ -495,8 +508,8 @@ int main(int argc, char* argv[])
 	std::string parameter = argv[2];
 #endif 
 
-	// Handle the connect command.
-	if (command == "-c" || command == "-connect")
+	// Handle the create command.
+	if (command == "-c" || command == "-create")
 	{
 		shared_file = fopen(parameter.c_str(), "rb");
 
@@ -515,8 +528,6 @@ int main(int argc, char* argv[])
 #else
 		int fd = fileno(shared_file);
 #endif
-
-		
 
 		if (fd < 0)
 		{
@@ -557,12 +568,12 @@ int main(int argc, char* argv[])
 	}
 
 	//////////////////////////////////////////////
-
+	  
 	client c; 
 
 	//////////////////////////////////////////////
 
-	std::string uri = "ws://vldr.org/sd";
+	std::string uri = "ws://my.vldr.org/sd";
 
 	//////////////////////////////////////////////
 

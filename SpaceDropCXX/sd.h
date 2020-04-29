@@ -48,6 +48,8 @@ enum State {
 
 State state = S_IDLE;
 
+const int BUFFERING_LIMIT = 100000000;
+
 const int BLOCK_SIZE = 65527;
 const int BLOCK_SIZE_UPDATE = BLOCK_SIZE * 4;
 
