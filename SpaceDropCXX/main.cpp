@@ -101,7 +101,8 @@ void handle_send_pin(client * c, websocketpp::connection_hdl hdl)
 {
 	char room_pin[128] = { 0 };
 	printf("This room requires a PIN: ");
-	scanf_s("%[^\n]s", room_pin, sizeof room_pin);
+
+	scanf("%127[^\n]s", room_pin);
 
 	//////////////////////////////////////////
 
@@ -186,9 +187,9 @@ void handle_file_info(client * c, websocketpp::connection_hdl hdl, json & messag
 
 	//////////////////////////////////////
 
-	auto err = fopen_s(&shared_file, file_name.c_str(), "w+b");
+	shared_file = fopen(file_name.c_str(), "w+b");
 
-	if (err)
+	if (!shared_file)
 	{
 		display_error("Unable to create file, file may already exist.");
 		return;
@@ -294,7 +295,8 @@ void create_room(client * c, websocketpp::connection_hdl hdl)
 {
 	char room_pin[128] = { 0 };
 	printf("Enter a PIN for the room (leave blank if you don't care): ");
-	scanf_s("%[^\n]s", room_pin, sizeof room_pin);
+
+	scanf("%127[^\n]s", room_pin);
 
 #if defined(_WIN32)
 	system("cls");
@@ -313,7 +315,10 @@ void create_room(client * c, websocketpp::connection_hdl hdl)
 		// Serialize our json object.
 		auto string = create_room_obj.dump();
 
-		printf("Sending create room.\n");
+
+		printf("Sending create room. %s\n", room_pin);
+
+		system("pause");
 
 		// Send our serialized string.
 		c->send(hdl, string, websocketpp::frame::opcode::value::text);
@@ -476,11 +481,11 @@ int main(int argc, char* argv[])
 	//////////////////////////////////////////////
 
 #ifdef _DEBUG
-	//std::string command = "-c";
-	//std::string parameter = "C:\\Users\\vlad\\Desktop\\bigblack.mp4";
+	std::string command = "-c";
+	std::string parameter = "C:\\Users\\vlad\\Desktop\\bigblack.mp4";
 	
-	std::string command = "-j";
-	std::string parameter = "06og";
+	//std::string command = "-j";
+	//std::string parameter = "06og";
 #else
 	if (argc != 3)
 	{
@@ -491,14 +496,14 @@ int main(int argc, char* argv[])
 
 	std::string command = argv[1];
 	std::string parameter = argv[2];
-#endif
+#endif 
 
 	// Handle the connect command.
 	if (command == "-c" || command == "-connect")
 	{
-		auto err = fopen_s(&shared_file, parameter.c_str(), "rb");
+		shared_file = fopen(parameter.c_str(), "rb");
 
-		if (err)
+		if (!shared_file)
 		{
 			printf("Invalid file path provided.\n");
 			return 0;

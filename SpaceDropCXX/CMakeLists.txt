@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12.2)
+cmake_minimum_required(VERSION 3.10.2)
 
 project(SpaceDropCXX)
 
@@ -9,6 +9,9 @@ add_executable(SpaceDropCXX
   main.cpp
   sd.h
 )
+
+include_directories(includes)
+
 # Preprocessor definitions
 target_compile_definitions(SpaceDropCXX PRIVATE
   $<$<CONFIG:Debug>:_MBCS;>
