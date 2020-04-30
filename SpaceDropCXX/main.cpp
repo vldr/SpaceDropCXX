@@ -119,8 +119,6 @@ std::string request_pin(bool allow_empty = true)
 	std::string pin;
 	std::getline(std::cin, pin);
 
-	printf(pin.c_str());
-
 #ifdef _WIN32
 	SetConsoleMode(hStdin, mode);
 #else
