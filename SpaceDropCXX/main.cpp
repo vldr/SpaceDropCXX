@@ -19,13 +19,11 @@ void handle_room_created(json & message)
 
 	/////////////////////////////////////////////////
 
-#if defined(_WIN32)
-	system("cls");
-#endif
-
 	std::string file_name = file_info["name"];
 
-	printf("Room created - #%s\n", room_id.c_str());
+
+	printf("__________________________\n");
+	printf("Room Created - #%s\n", room_id.c_str());
 	printf("File Name - %s\n", file_name.c_str());
 	printf("File Size - %lu\n", file_size);
 	printf("__________________________\n");
@@ -93,19 +91,65 @@ void send_file_info(client * c, websocketpp::connection_hdl hdl)
 	}
 }
 
+std::string request_pin(bool allow_empty = true)
+{
+	printf(allow_empty ? 
+		"Enter a PIN for the room (leave blank if you don't care):\n" : 
+		"Please enter the PIN for the room:\n"
+	);
+
+	/////////////////////////////////////////////////
+
+#ifdef _WIN32
+	HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+	DWORD mode = 0;
+	GetConsoleMode(hStdin, &mode);
+	SetConsoleMode(hStdin, mode & (~ENABLE_ECHO_INPUT));
+#else
+	termios oldt;
+	tcgetattr(STDIN_FILENO, &oldt);
+	termios newt = oldt;
+	newt.c_lflag &= ~ECHO;
+	tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+#endif
+
+	/////////////////////////////////////////////////
+
+	std::string pin;
+	std::getline(std::cin, pin);
+
+	printf(pin.c_str());
+
+#ifdef _WIN32
+	SetConsoleMode(hStdin, mode);
+#else
+	tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+#endif
+
+	/////////////////////////////////////////////////
+
+	if (!allow_empty && pin.empty()) 
+	{
+		printf("A pin is required.\n");
+		return request_pin(allow_empty);
+	}
+
+	return std::move(pin);
+}
+
 /*
 * Handles sending the pin for the room inorder to enter it.
 */
 void handle_send_pin(client * c, websocketpp::connection_hdl hdl)
 {
-	char room_pin[128] = { 0 };
-	printf("This room requires a PIN: ");
-
-	scanf("%127[^\n]s", room_pin);
-
-	//////////////////////////////////////////
-
-	join_room(c, hdl, room_pin);
+	join_room(
+		c, 
+		hdl,
+		std::move(
+			request_pin(false)
+		)
+	);
 }
 
 /*
@@ -146,10 +190,6 @@ void handle_ready_for_transfer(client * c, websocketpp::connection_hdl hdl, json
 */
 void handle_file_info(client * c, websocketpp::connection_hdl hdl, json & message)
 {
-#if defined(_WIN32)
-	system("cls");
-#endif
-
 	std::string file_name = message["fileInfo"]["name"];
 
 	//////////////////////////////////////
@@ -168,6 +208,7 @@ void handle_file_info(client * c, websocketpp::connection_hdl hdl, json & messag
 
 	//////////////////////////////////////
 
+	printf("__________________________\n");
 	printf("Room - #%s\n", room_id.c_str());
 	printf("File Name - %s\n", file_name.c_str());
 	printf("File Size - %lu\n", file_size);
@@ -296,13 +337,7 @@ void join_room(client * c, websocketpp::connection_hdl hdl, std::string pin)
 */
 void create_room(client * c, websocketpp::connection_hdl hdl)
 {
-	char room_pin[128] = { 0 };
-	printf("Enter a PIN for the room (leave blank if you don't care): ");
-	scanf("%127[^\n]s", room_pin);
-
-#if defined(_WIN32)
-	system("cls");
-#endif
+	auto room_pin = request_pin();
 
 	//////////////////////////////////////////////
 
@@ -336,6 +371,12 @@ void on_interrupt(client * c, websocketpp::connection_hdl hdl)
 {
 	if (send_state.size == 0)
 		return; 
+
+	if (!is_transmitting) 
+	{
+		printf("Cancelling transfer.\n");
+		return;
+	}
 
 	///////////////////////////////////////////////
 	 

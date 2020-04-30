@@ -14,6 +14,13 @@
 
 #include <json.hpp> 
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <termios.h>
+#include <unistd.h>
+#endif
+
 
 using nlohmann::json;
 
