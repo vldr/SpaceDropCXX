@@ -111,7 +111,6 @@ std::string request_pin(bool allow_empty = true)
 	termios newt = oldt;
 	newt.c_lflag &= ~ECHO;
 	tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-
 #endif
 
 	/////////////////////////////////////////////////
@@ -543,25 +542,16 @@ std::string base_name(std::string const & path)
  
 int main(int argc, char* argv[]) 
 {
-	//////////////////////////////////////////////
-
-#ifdef _DEBUG
-	std::string command = "-c";
-	std::string parameter = "C:\\Users\\vlad\\Downloads\\tut.mp4";
-	
-	//std::string command = "-j";
-	//std::string parameter = "06og";
-#else
-	if (argc != 3)
+	if (argc < 3)
 	{
 		printf("Not enough arguments provided.\n");
 		return 0;
 	}
 
-
 	std::string command = argv[1];
 	std::string parameter = argv[2];
-#endif 
+
+	//////////////////////////////////////////////
 
 	// Handle the create command.
 	if (command == "-c" || command == "-create")
