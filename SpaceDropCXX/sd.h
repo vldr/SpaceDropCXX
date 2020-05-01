@@ -21,6 +21,8 @@
 #include <unistd.h>
 #endif
 
+#define PROGRESS_INDICATOR "============================================================"
+#define PROGRESS_WIDTH 60
 
 using nlohmann::json;
 
@@ -51,7 +53,7 @@ enum Operation {
 	READY_FOR_TRANSFER = 6,
 	TRANSFER_STATUS = 7
 };
-
+ 
 enum State {
 	S_IDLE = 0,
 	S_UPLOADING = 1,
@@ -64,6 +66,8 @@ struct SendState {
 
 	size_t block_size = BLOCK_SIZE;
 	unsigned char buffer[BLOCK_SIZE];
+
+	long progress = 0;
 
 	bool should_be_flushed = false;
 };

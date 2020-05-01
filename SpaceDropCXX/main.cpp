@@ -6,7 +6,6 @@
 void display_error(std::string error)
 {
 	printf("Error occurred: %s\n", error.c_str());
-	printf("Exiting program\n");
 	exit(0);
 }
 
@@ -91,6 +90,10 @@ void send_file_info(client * c, websocketpp::connection_hdl hdl)
 	}
 }
 
+/*
+* Requests the user for a PIN and 
+* will also hide the input from being displayed.
+*/
 std::string request_pin(bool allow_empty = true)
 {
 	printf(allow_empty ? 
@@ -177,10 +180,8 @@ void handle_ready_for_transfer(client * c, websocketpp::connection_hdl hdl, json
 
 	/////////////////////////////////////////////////////
 
-	auto con = c->get_con_from_hdl(hdl);
-
 	c->interrupt(hdl);
-} 
+}  
 
 /*
 * Handles recieving file information.
@@ -190,26 +191,26 @@ void handle_file_info(client * c, websocketpp::connection_hdl hdl, json & messag
 	std::string file_name = message["fileInfo"]["name"];
 
 	//////////////////////////////////////
-
-	// Check if the file name matches our regex.
-	if (!std::regex_match(file_name, std::regex("[0-9a-zA-Z-._() ]+")))
+	 
+	// Check if an invalid character is in a filename.
+	if (!std::regex_match(file_name, std::regex("[^\\/^\\^:^*^?^\"^<^>^|]+")))
 	{
-		display_error("Improper file name.");
+		display_error("Improper file name. ");
 		return;
 	}
 
 	//////////////////////////////////////
 
 	file_info = message["fileInfo"];
-	file_size = file_info["size"];
+	file_size = file_info["size"]; 
 
 	//////////////////////////////////////
 
-	printf("__________________________\n");
-	printf("Room - #%s\n", room_id.c_str());
-	printf("File Name - %s\n", file_name.c_str());
-	printf("File Size - %lu\n", file_size);
-	printf("__________________________\n");
+	printf("Preparing to download from room #%s. (%s - %lu)\n", 
+		room_id.c_str(), 
+		file_name.c_str(), 
+		file_size
+	);
 
 	//////////////////////////////////////
 
@@ -220,7 +221,7 @@ void handle_file_info(client * c, websocketpp::connection_hdl hdl, json & messag
 	}
 
 	//////////////////////////////////////
-
+	 
 	shared_file = fopen(file_name.c_str(), "w+b");
 
 	if (!shared_file)
@@ -360,23 +361,37 @@ void create_room(client * c, websocketpp::connection_hdl hdl)
 	{
 		display_error(std::string("Error in create_room (websocketpp::exception), ") + e.what());
 	}
+}  
+ 
+/*
+* Displays a progress bar.
+*/
+void display_progress_bar(size_t progress)
+{
+	auto percentage = (float)progress / (float)file_size;
+	   
+	int val = (int)(percentage * 100); 
+	int lpad = (int)(percentage * PROGRESS_WIDTH);
+	int rpad = PROGRESS_WIDTH - lpad;
+
+	printf("\r%3d%% [%.*s>%*s]", val, lpad, PROGRESS_INDICATOR, rpad, "");
+	fflush(stdout);
 }
 
 //////////////////////////////////////////////
  
 void on_interrupt(client * c, websocketpp::connection_hdl hdl)
 {
-	if (send_state.size == 0)
-		return; 
+	if (send_state.size == 0) return;
 
-	if (!is_transmitting) 
+	if (!is_transmitting)
 	{
 		printf("Cancelling transfer.\n");
 		return;
 	}
 
 	///////////////////////////////////////////////
-	 
+
 	auto con = c->get_con_from_hdl(hdl);
 
 	if (send_state.should_be_flushed && con->get_buffered_amount() != 0)
@@ -386,23 +401,21 @@ void on_interrupt(client * c, websocketpp::connection_hdl hdl)
 	}
 
 	///////////////////////////////////////////////
-
+	  
 	if (send_state.size < send_state.block_size)
 		send_state.block_size = send_state.size;
 
 	size_t bytes_read = fread(send_state.buffer, sizeof(unsigned char), send_state.block_size, shared_file);
-
+	 
 	c->send(hdl, send_state.buffer, bytes_read, websocketpp::frame::opcode::value::binary);
-	c->poll();
 
 	send_state.size -= bytes_read;
 	send_state.should_be_flushed = con->get_buffered_amount() >= BUFFERING_LIMIT;
 
 	///////////////////////////////////////////////
-
+	
 	c->interrupt(hdl);
 }
-
 
 void on_open(client * c, websocketpp::connection_hdl hdl) 
 {
@@ -436,7 +449,7 @@ void on_message(client * c, websocketpp::connection_hdl hdl, message_ptr msg)
 		msg->get_opcode() == websocketpp::frame::opcode::value::binary 
 		&& state == S_DOWNLOADING
 		&& shared_file
-	)
+	) 
 	{
 		auto payload = msg->get_payload(); 
 		 
@@ -445,25 +458,30 @@ void on_message(client * c, websocketpp::connection_hdl hdl, message_ptr msg)
 			sizeof(unsigned char),
 			payload.size(),
 			shared_file
-		); 
-		 
+		);       
+
 		/////////////////////////////////
 
-		if (bytes_written % BLOCK_SIZE_UPDATE == 0)
+		if (bytes_written % (bytes_written / 10) == 0)
 		{
-			update_transfer_status(c, hdl);
+			display_progress_bar(bytes_written);
+			update_transfer_status(c, hdl); 
 		}
-
+		 
 		/////////////////////////////////
 
 		if (bytes_written == file_size)
 		{
-			printf("Transfer completed.\n");
+			display_progress_bar(bytes_written);
+
+			printf("\nTransfer completed.\n");
+
+			///////////////////////////////////////////
 
 			state = S_IDLE;
 
 			///////////////////////////////////////////
-
+			 
 			fclose(shared_file);
 			shared_file = nullptr;
 
@@ -488,7 +506,7 @@ void on_message(client * c, websocketpp::connection_hdl hdl, message_ptr msg)
 				break;
 			}
 			case CREATE_ROOM:
-			{
+			{ 
 				handle_room_created(message);
 				break;
 			}
@@ -510,16 +528,17 @@ void on_message(client * c, websocketpp::connection_hdl hdl, message_ptr msg)
 			case SEND_PIN:
 			{
 				handle_send_pin(c, hdl);
-				break;
+				break; 
 			}
 			case TRANSFER_STATUS:
 			{
-				long progress = message["progress"];
+				auto progress = message["progress"];
+
+				display_progress_bar(progress); 
 
 				if (progress == file_size)
 				{
-					printf("File transfer completed.\n");
-
+					printf("\nFile transfer completed.\n");
 				}
 
 				break;
@@ -532,7 +551,7 @@ void on_message(client * c, websocketpp::connection_hdl hdl, message_ptr msg)
 		}
 	}
 }
- 
+  
 //////////////////////////////////////////////
 
 std::string base_name(std::string const & path)
@@ -610,11 +629,11 @@ int main(int argc, char* argv[])
 	else 
 	{
 		printf("Invalid command provided.\n");
-	}
+	} 
 	 
 	//////////////////////////////////////////////
-	  
-	client c; 
+	   
+	client c;  
 
 	//////////////////////////////////////////////
 
@@ -622,7 +641,7 @@ int main(int argc, char* argv[])
 
 	//////////////////////////////////////////////
 
-	try 
+	try   
 	{
 		c.set_access_channels(websocketpp::log::alevel::none);
 		c.clear_access_channels(websocketpp::log::alevel::none);
@@ -647,6 +666,6 @@ int main(int argc, char* argv[])
 	}
 	catch (websocketpp::exception const & e) 
 	{
-		std::cout << e.what() << std::endl;
+		display_error(std::string("Error in main, ") + e.what());
 	}
 }
