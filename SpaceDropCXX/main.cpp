@@ -139,20 +139,6 @@ std::string request_pin(bool allow_empty = true)
 }
 
 /*
-* Handles sending the pin for the room inorder to enter it.
-*/
-void handle_send_pin(client * c, websocketpp::connection_hdl hdl)
-{
-	join_room(
-		c, 
-		hdl,
-		std::move(
-			request_pin(false)
-		)
-	);
-}
-
-/*
 * Handles sending the file contents to the client.
 */
 void handle_ready_for_transfer(client * c, websocketpp::connection_hdl hdl, json & message)
@@ -527,7 +513,13 @@ void on_message(client * c, websocketpp::connection_hdl hdl, message_ptr msg)
 			}
 			case SEND_PIN:
 			{
-				handle_send_pin(c, hdl);
+				join_room(
+					c,
+					hdl,
+					std::move(
+						request_pin(false)
+					)
+				);
 				break; 
 			}
 			case TRANSFER_STATUS:
