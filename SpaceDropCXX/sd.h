@@ -24,6 +24,9 @@
 #define PROGRESS_INDICATOR "============================================================"
 #define PROGRESS_WIDTH 60
 
+#define SD_URL "http://vldr.org/ws/worker.html"
+#define SD_SERVER "ws://vldr.org/sd"
+
 using nlohmann::json;
 
 typedef websocketpp::client<websocketpp::config::asio_client> client;

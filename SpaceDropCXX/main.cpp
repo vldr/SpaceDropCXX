@@ -15,17 +15,17 @@ void display_error(std::string error)
 void handle_room_created(json & message)
 {
 	room_id = message["id"];
-
+	 
 	/////////////////////////////////////////////////
 
 	std::string file_name = file_info["name"];
 
-
 	printf("__________________________\n");
-	printf("Room Created - #%s\n", room_id.c_str());
-	printf("File Name - %s\n", file_name.c_str());
-	printf("File Size - %lu\n", file_size);
-	printf("__________________________\n");
+	printf("Room ID: %s\n", room_id.c_str());
+	printf("Shareable URL: %s#%s\n", SD_URL, room_id.c_str());
+	printf("File Name: %s\n", file_name.c_str());
+	printf("File Size: %lu\n", file_size);
+	printf("__________________________\n\n");
 }
 
 /*
@@ -359,9 +359,16 @@ void display_progress_bar(size_t progress)
 	int val = (int)(percentage * 100); 
 	int lpad = (int)(percentage * PROGRESS_WIDTH);
 	int rpad = PROGRESS_WIDTH - lpad;
+	  
+	if (lpad > 0)
+		printf("\r%3d%% [%.*s>%*s]", val, lpad, PROGRESS_INDICATOR, rpad, "");
+	else
+		printf("\r%3d%% [%.*s %*s]", val, lpad, PROGRESS_INDICATOR, rpad, "");
 
-	printf("\r%3d%% [%.*s>%*s]", val, lpad, PROGRESS_INDICATOR, rpad, "");
 	fflush(stdout);
+	 
+	if (progress == 100)
+		printf("\n");
 }
 
 //////////////////////////////////////////////
@@ -460,7 +467,7 @@ void on_message(client * c, websocketpp::connection_hdl hdl, message_ptr msg)
 		{
 			display_progress_bar(bytes_written);
 
-			printf("\nTransfer completed.\n");
+			printf("Transfer completed.\n");
 
 			///////////////////////////////////////////
 
@@ -530,7 +537,7 @@ void on_message(client * c, websocketpp::connection_hdl hdl, message_ptr msg)
 
 				if (progress == file_size)
 				{
-					printf("\nFile transfer completed.\n");
+					printf("File transfer completed.\n");
 				}
 
 				break;
@@ -629,10 +636,6 @@ int main(int argc, char* argv[])
 
 	//////////////////////////////////////////////
 
-	std::string uri = "ws://vldr.org/sd";
-
-	//////////////////////////////////////////////
-
 	try   
 	{
 		c.set_access_channels(websocketpp::log::alevel::none);
@@ -645,7 +648,7 @@ int main(int argc, char* argv[])
 		c.set_interrupt_handler(bind(&on_interrupt, &c, ::_1));
 
 		websocketpp::lib::error_code ec;
-		client::connection_ptr con = c.get_connection(uri, ec);
+		client::connection_ptr con = c.get_connection(SD_SERVER, ec);
 
 		if (ec) 
 		{
