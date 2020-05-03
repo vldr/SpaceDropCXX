@@ -1,4 +1,4 @@
-#include "sd.h"
+#include "sd.h" 
 
 /*
 * Displays an error and exits the program.
@@ -61,7 +61,7 @@ void update_transfer_status(client * c, websocketpp::connection_hdl hdl)
 	{
 		display_error(std::string("Error in send_file_info (websocketpp::exception), ") + e.what());
 	}
-}
+} 
 
 /*
 * Handles sending file information to the other client.
@@ -99,7 +99,7 @@ std::string request_pin(bool allow_empty = true)
 	printf(allow_empty ? 
 		"Enter a PIN for the room (leave blank if you don't care):\n" : 
 		"Please enter the PIN for the room:\n"
-	);
+	); 
 
 	/////////////////////////////////////////////////
 
@@ -324,7 +324,7 @@ void create_room(client * c, websocketpp::connection_hdl hdl)
 	auto room_pin = request_pin();
 
 	//////////////////////////////////////////////
-
+	 
 	json create_room_obj;
 	create_room_obj["status"] = CREATE_ROOM;
 	create_room_obj["pin"] = room_pin;
@@ -360,15 +360,17 @@ void display_progress_bar(size_t progress)
 	int lpad = (int)(percentage * PROGRESS_WIDTH);
 	int rpad = PROGRESS_WIDTH - lpad;
 	  
-	if (lpad > 0)
+	if (lpad > 0) 
+	{
 		printf("\r%3d%% [%.*s>%*s]", val, lpad, PROGRESS_INDICATOR, rpad, "");
+	}
 	else
+	{
 		printf("\r%3d%% [%.*s %*s]", val, lpad, PROGRESS_INDICATOR, rpad, "");
-
-	fflush(stdout);
-	 
-	if (progress == 100)
-		printf("\n");
+	}
+	
+	fflush(stdout);	 
+	progress_bar_was_called = true;
 }
 
 //////////////////////////////////////////////

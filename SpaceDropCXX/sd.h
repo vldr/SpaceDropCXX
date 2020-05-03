@@ -27,6 +27,10 @@
 #define SD_URL "http://vldr.org/ws/worker.html"
 #define SD_SERVER "ws://vldr.org/sd"
 
+#define printf(...) {if (progress_bar_was_called) { printf("\n"); progress_bar_was_called = false; } \
+printf(__VA_ARGS__);} 
+
+
 using nlohmann::json;
 
 typedef websocketpp::client<websocketpp::config::asio_client> client;
@@ -92,5 +96,7 @@ json file_info;
 std::string room_id = std::string();
 
 FILE * shared_file = nullptr;
+
+bool progress_bar_was_called = false;
 
 
