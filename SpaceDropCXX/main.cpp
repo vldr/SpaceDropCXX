@@ -5,7 +5,7 @@
 */
 void display_error(std::string error)
 {
-	printf("Error occurred: %s\n", error.c_str());
+	printf("\x1B[31mError occurred: %s\x1B[0m\n", error.c_str());
 	exit(0);
 }
 
@@ -28,7 +28,7 @@ void handle_room_created(json & message)
 	printf("__________________________\n\n");
 }
 
-/*
+/* 
 * Handles any error that may occur.
 */
 void handle_error_occurred(json & message) 
@@ -358,8 +358,8 @@ void display_progress_bar(size_t progress)
 	   
 	int val = (int)(percentage * 100); 
 	int lpad = (int)(percentage * PROGRESS_WIDTH);
-	int rpad = PROGRESS_WIDTH - lpad;
-	  
+	int rpad = PROGRESS_WIDTH - lpad; 
+
 	if (lpad > 0) 
 	{
 		printf("\r%3d%% [%.*s>%*s]", val, lpad, PROGRESS_INDICATOR, rpad, "");
