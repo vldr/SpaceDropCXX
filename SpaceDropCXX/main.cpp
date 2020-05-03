@@ -5,7 +5,7 @@
 */
 void display_error(std::string error)
 {
-	printf("\x1B[31mError occurred: %s\x1B[0m\n", error.c_str());
+	printf_ext("\x1B[31mError occurred: %s\x1B[0m\n", error.c_str());
 	exit(0);
 }
 
@@ -20,12 +20,12 @@ void handle_room_created(json & message)
 
 	std::string file_name = file_info["name"];
 
-	printf("__________________________\n");
-	printf("Room ID: %s\n", room_id.c_str());
-	printf("Shareable URL: %s#%s\n", SD_URL, room_id.c_str());
-	printf("File Name: %s\n", file_name.c_str());
-	printf("File Size: %lu\n", file_size);
-	printf("__________________________\n\n");
+	printf_ext("__________________________\n");
+	printf_ext("Room ID: %s\n", room_id.c_str());
+	printf_ext("Shareable URL: %s#%s\n", SD_URL, room_id.c_str());
+	printf_ext("File Name: %s\n", file_name.c_str());
+	printf_ext("File Size: %lu\n", file_size);
+	printf_ext("__________________________\n\n");
 }
 
 /* 
@@ -76,7 +76,7 @@ void send_file_info(client * c, websocketpp::connection_hdl hdl)
 	{
 		auto string = file_info_obj.dump();
 
-		printf("Sending file info.\n");
+		printf_ext("Sending file info.\n");
 
 		c->send(hdl, string, websocketpp::frame::opcode::value::text);
 	}
@@ -96,7 +96,7 @@ void send_file_info(client * c, websocketpp::connection_hdl hdl)
 */
 std::string request_pin(bool allow_empty = true)
 {
-	printf(allow_empty ? 
+	printf_ext(allow_empty ? 
 		"Enter a PIN for the room (leave blank if you don't care):\n" : 
 		"Please enter the PIN for the room:\n"
 	); 
@@ -131,7 +131,7 @@ std::string request_pin(bool allow_empty = true)
 
 	if (!allow_empty && pin.empty()) 
 	{
-		printf("A pin is required.\n");
+		printf_ext("A pin is required.\n");
 		return request_pin(allow_empty);
 	}
 
@@ -151,7 +151,7 @@ void handle_ready_for_transfer(client * c, websocketpp::connection_hdl hdl, json
 
 	/////////////////////////////////////////////////////
 
-	printf("Starting transfer.\n");
+	printf_ext("Starting transfer.\n");
 
 	/////////////////////////////////////////////////////
 
@@ -192,7 +192,7 @@ void handle_file_info(client * c, websocketpp::connection_hdl hdl, json & messag
 
 	//////////////////////////////////////
 
-	printf("Preparing to download from room #%s. (%s - %lu)\n", 
+	printf_ext("Preparing to download from room #%s. (%s - %lu)\n", 
 		room_id.c_str(), 
 		file_name.c_str(), 
 		file_size
@@ -237,7 +237,7 @@ void handle_file_info(client * c, websocketpp::connection_hdl hdl, json & messag
 		// Serialize our json object.
 		auto string = ready_for_transfer_obj.dump();
 
-		printf("Sending ready for transfer.\n");
+		printf_ext("Sending ready for transfer.\n");
 
 		// Send our serialized string.
 		c->send(hdl, string, websocketpp::frame::opcode::value::text);
@@ -263,7 +263,7 @@ void handle_update_room(client * c, websocketpp::connection_hdl hdl, json & mess
 
 	if (!is_transmitting)
 	{
-		printf("Client has left the room\n");
+		printf_ext("Client has left the room\n");
 		return;
 	}
 
@@ -271,14 +271,14 @@ void handle_update_room(client * c, websocketpp::connection_hdl hdl, json & mess
 
 	if (state == S_UPLOADING)
 	{
-		printf("Client has conncted to the room.\n");
+		printf_ext("Client has conncted to the room.\n");
 
 		send_file_info(c, hdl);
 	}
 
 	if (state == S_IDLE)
 	{
-		printf("Successfully joined the room.\n");
+		printf_ext("Successfully joined the room.\n");
 	}
 }
 
@@ -301,7 +301,7 @@ void join_room(client * c, websocketpp::connection_hdl hdl, std::string pin)
 		// Serialize our json object.
 		auto string = join_room_obj.dump();
 
-		printf("Sending join room.\n");
+		printf_ext("Sending join room.\n");
 
 		// Send our serialized string.
 		c->send(hdl, string, websocketpp::frame::opcode::value::text);
@@ -335,7 +335,7 @@ void create_room(client * c, websocketpp::connection_hdl hdl)
 	{
 		auto string = create_room_obj.dump();
 
-		printf("Sending create room.\n");
+		printf_ext("Sending create room.\n");
 
 		c->send(hdl, string, websocketpp::frame::opcode::value::text);
 	}
@@ -359,7 +359,7 @@ void display_progress_bar(size_t progress)
 	int val = (int)(percentage * 100); 
 	int lpad = (int)(percentage * PROGRESS_WIDTH);
 	int rpad = PROGRESS_WIDTH - lpad; 
-
+	 
 	if (lpad > 0) 
 	{
 		printf("\r%3d%% [%.*s>%*s]", val, lpad, PROGRESS_INDICATOR, rpad, "");
@@ -381,7 +381,7 @@ void on_interrupt(client * c, websocketpp::connection_hdl hdl)
 
 	if (!is_transmitting)
 	{
-		printf("Cancelling transfer.\n");
+		printf_ext("Cancelling transfer.\n");
 		return;
 	}
 
@@ -418,7 +418,7 @@ void on_open(client * c, websocketpp::connection_hdl hdl)
 
 	if (state == S_UPLOADING)
 	{
-		printf("Connected as sender.\n");
+		printf_ext("Connected as sender.\n");
 
 		//////////////////////////////////////////////
 	
@@ -426,7 +426,7 @@ void on_open(client * c, websocketpp::connection_hdl hdl)
 	}
 	else
 	{
-		printf("Connected as receiver, attempting to join room.\n");
+		printf_ext("Connected as receiver, attempting to join room.\n");
 
 		//////////////////////////////////////////////
 
@@ -469,7 +469,7 @@ void on_message(client * c, websocketpp::connection_hdl hdl, message_ptr msg)
 		{
 			display_progress_bar(bytes_written);
 
-			printf("Transfer completed.\n");
+			printf_ext("Transfer completed.\n");
 
 			///////////////////////////////////////////
 
@@ -539,7 +539,7 @@ void on_message(client * c, websocketpp::connection_hdl hdl, message_ptr msg)
 
 				if (progress == file_size)
 				{
-					printf("File transfer completed.\n");
+					printf_ext("File transfer completed.\n");
 				}
 
 				break;
@@ -564,7 +564,7 @@ int main(int argc, char* argv[])
 {
 	if (argc < 3)
 	{
-		printf("Not enough arguments provided.\n");
+		printf_ext("Not enough arguments provided.\n");
 		return 0;
 	}
 
@@ -580,7 +580,7 @@ int main(int argc, char* argv[])
 
 		if (!shared_file)
 		{
-			printf("Invalid file path provided.\n");
+			printf_ext("Invalid file path provided.\n");
 			return 0;
 		}
 
@@ -629,7 +629,7 @@ int main(int argc, char* argv[])
 	}
 	else 
 	{
-		printf("Invalid command provided.\n");
+		printf_ext("Invalid command provided.\n");
 	} 
 	 
 	//////////////////////////////////////////////
@@ -654,7 +654,7 @@ int main(int argc, char* argv[])
 
 		if (ec) 
 		{
-			printf("Could not create connection because: %s\n", ec.message().c_str());
+			printf_ext("Could not create connection because: %s\n", ec.message().c_str());
 			return 0;
 		}
 

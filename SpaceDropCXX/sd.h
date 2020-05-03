@@ -27,7 +27,7 @@
 #define SD_URL "http://vldr.org/ws/worker.html"
 #define SD_SERVER "ws://vldr.org/sd"
 
-#define printf(...) {if (progress_bar_was_called) { printf("\n"); progress_bar_was_called = false; } \
+#define printf_ext(...) {if (progress_bar_was_called) { printf("\n"); progress_bar_was_called = false; } \
 printf(__VA_ARGS__);} 
 
 
